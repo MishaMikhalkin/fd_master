@@ -165,13 +165,13 @@ for i = 2 : len
     pressureTypeFlag = 0;
     % поиск значений давления отличающегося от максимального на заданную
     % погрешность
-    if ((max_elem - pressure(1,i))/max_elem < psi) 
+    if (abs((max_elem - pressure(1,i))/max_elem) < psi) 
         % устанавливаем флаг максимального давления
         pressureTypeFlag = 1;
     end
     % поиск значений давления отличающихсф от минимального на заданную
     % погрешность
-    if ((pressure(1,i) - min_elem)/min_elem < psi) 
+    if (abs((pressure(1,i) - min_elem)/min_elem) < psi) 
         % устанавливаем флаг минимального давления давления
         pressureTypeFlag = -1;
     end
