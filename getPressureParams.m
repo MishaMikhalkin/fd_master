@@ -26,13 +26,15 @@ function [result] = getPressureParams(pressure, psi, nQuants, windowLen, windowS
 
 dt = 1/nQuants;
 % максимальный глобальный элемент
-max_elem = 0;
+max_elem = -inf;
 % максимальный элемент за цикл
-max_loc_elem = 0;
+max_loc_elem = -inf;
 % время максимального элемента за цикл
 max_loc_time = 0;
 % минимальный глобальный элемент
-min_elem = 100000;
+min_elem = inf;
+% минимальный элемент за цикл
+min_loc_elem = inf;
 % индикатор последнего пика давления
 currPeakIndicator = 0;
 % индикатор последнего пика давления
@@ -89,6 +91,9 @@ pressurePeak = [];
 % время пиков давления
 pressurePeakTime = [];
 
+% значениея минимумов давления
+pressureMin = [-inf];
+
 % обработка входных параметров
 if (nargin == 7) && (~isempty(levelCrossingValue))
     % уровень 
@@ -115,6 +120,9 @@ pressureTypeFlag = 0;
 % флаг означающий сохранение значения значения
 pressurePeakSaveFlag = 1;
 
+% флаг означающий сохранение локального минимума
+pressureMinSaveFlag = 1;
+
 % tmp var
 t_max_elem = [];
 t_max_elem_i = [];
@@ -127,6 +135,7 @@ t_injectionStartSaveFlag = [0];
 t_injectionFinishSaveFlag = [0];
 % перебираем последовательно все элементы
 for i = 2 : len
+    
 %     if (mod(i, 10000) == 0)
 %         i / 2000000 * 100
 %     end
@@ -171,7 +180,8 @@ for i = 2 : len
     end
     % поиск значений давления отличающихсф от минимального на заданную
     % погрешность
-    if (abs((pressure(1,i) - min_elem)/min_elem) < psi) 
+    %if (abs((pressure(1,i) - min_elem)/min_elem) < psi) 
+    if (abs((pressure(1,i) - mean(pressureMin))/mean(pressureMin)) < psi) || (abs((pressure(1,i) - min_elem)/min_elem) < psi)
         % устанавливаем флаг минимального давления давления
         pressureTypeFlag = -1;
     end
@@ -189,6 +199,11 @@ for i = 2 : len
         max_loc_time = i;
         % устанавливаем флаг необходимости записи найденного значения
         pressurePeakSaveFlag = 0;
+    end
+    % поиск локального минимума
+    if (pressureTypeFlag == -1) && (min_loc_elem > pressure(1,i))
+       min_loc_elem = pressure(1,i);
+       pressureMinSaveFlag = 0;
     end
     % запись найденного локального максимума
     if (pressureTypeFlag == -1) && (pressurePeakSaveFlag == 0) 
@@ -212,7 +227,7 @@ for i = 2 : len
             % сбрасываем флаг поиска максимального давления
             pressurePeakSaveFlag = 1;
             % сбрасываем значения максимального давления
-            max_loc_elem = 0;
+            max_loc_elem = -inf;
             % записываем время прошедшее от последнего зажигания
             if (length(injectionStartTime) > 0)
                 injectionBeforeTime = [injectionBeforeTime (max_loc_time - last(injectionStartTime))];
@@ -227,7 +242,7 @@ for i = 2 : len
             % сбрасываем флаг поиска максимального давления
             pressurePeakSaveFlag = 1;
             % сбрасываем значения максимального давления
-            max_loc_elem = 0;
+            max_loc_elem = -inf;
             % записываем время прошедшее от последнего зажигания
             if (length(injectionStartTime) > 0)
                 injectionBeforeTime = [(max_loc_time - last(injectionStartTime))];
@@ -238,8 +253,20 @@ for i = 2 : len
         end
         
     end
+    
     %>>>%
     %t_pressurePeakSaveFlag = [t_pressurePeakSaveFlag pressurePeakSaveFlag];
+    
+    %Пересчитываем среднее минимальное значение
+    if (pressureTypeFlag == 1) && (pressureMinSaveFlag == 0)
+        if pressureMin(1,1) == -inf
+            pressureMin = [min_loc_elem];
+        else
+            pressureMin = [pressureMin min_loc_elem];
+        end
+        min_loc_elem = inf;
+        pressureMinSaveFlag = 1;
+    end
     
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
