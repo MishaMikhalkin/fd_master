@@ -92,7 +92,9 @@ pressurePeak = [];
 pressurePeakTime = [];
 
 % значениея минимумов давления
-pressureMin = [-inf];
+pressureMin = [inf];
+% признак установки минимума
+pressureMinFounded = 0;
 
 % обработка входных параметров
 if (nargin == 7) && (~isempty(levelCrossingValue))
@@ -150,11 +152,17 @@ for i = 2 : len
         %t_max_elem_i = [t_max_elem_i i];
     end
     % поиск минимального глобального элемента 
-    if (min_elem > pressure(1,i))
-        min_elem = pressure(1,i);
-        %>>>%
-        %t_min_elem = [t_min_elem min_elem];
-        %t_min_elem_i = [t_min_elem_i i];
+    %if (min_elem > pressure(1,i))
+    %    min_elem = pressure(1,i);
+    %    %>>>%
+    %    %t_min_elem = [t_min_elem min_elem];
+    %    %t_min_elem_i = [t_min_elem_i i];
+    %end
+    
+    % пока не найден хотя бы один локальный минимум, считаем его значением
+    % текущее минимальное значение
+    if (pressureMinFounded == 0) && (pressure(1,i) < pressureMin(1,1))
+        pressureMin = [pressure(1,i)];
     end
 
 %     i
@@ -181,7 +189,9 @@ for i = 2 : len
     % поиск значений давления отличающихсф от минимального на заданную
     % погрешность
     %if (abs((pressure(1,i) - min_elem)/min_elem) < psi) 
-    if (abs((pressure(1,i) - mean(pressureMin))/mean(pressureMin)) < psi) || (abs((pressure(1,i) - min_elem)/min_elem) < psi)
+    % поиск значений давления отличающихся от среднего минимального на
+    % заданную погрешность
+    if (abs((pressure(1,i) - mean(pressureMin))/mean(pressureMin)) < psi)
         % устанавливаем флаг минимального давления давления
         pressureTypeFlag = -1;
     end
@@ -257,10 +267,11 @@ for i = 2 : len
     %>>>%
     %t_pressurePeakSaveFlag = [t_pressurePeakSaveFlag pressurePeakSaveFlag];
     
-    %Пересчитываем среднее минимальное значение
+    % добавляем найденный локальный минимум в вектор локальных минимумов
     if (pressureTypeFlag == 1) && (pressureMinSaveFlag == 0)
-        if pressureMin(1,1) == -inf
+        if(pressureMinFounded == 0)
             pressureMin = [min_loc_elem];
+            pressureMinFounded = 1;
         else
             pressureMin = [pressureMin min_loc_elem];
         end
@@ -290,8 +301,7 @@ for i = 2 : len
         %windowDiffVar = [windowDiffVar, currVar];
         %windowDiffMean = [windowDiffMean, currMean];
         %windowDiffVarTime = [windowDiffVarTime, i];
-    end
-    
+    end   
     
     % если мы достигли минимального давления то ждем следующего впрыска
     if (pressureTypeFlag == -1)
