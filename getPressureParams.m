@@ -24,6 +24,10 @@ function [result] = getPressureParams(pressure, psi, nQuants, windowLen, windowS
 %   TODO: оценку рассчитанных параметров
 %   TODO: сделать оценку параметров на лету
 
+psiVarNotFoundedFlag = 0;
+fifthCentralMoment = [];
+steps = 30;
+
 dt = 1/nQuants;
 % максимальный глобальный элемент
 max_elem = -inf;
@@ -198,8 +202,7 @@ for i = 2 : len
 
     %>>>%
     %t_pressureTypeFlag = [t_pressureTypeFlag pressureTypeFlag];
-    
-    
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % поиск максимального давления
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -260,6 +263,18 @@ for i = 2 : len
 
             pressureLevelTime = [];
             pressureLevelPeak = [];
+            psiVarNotFoundedFlag = 0;
+        end
+        
+        if (psiVarNotFoundedFlag == 0 && length(pressurePeak) >= 2)
+           psiVarNotFoundedFlag = 1;
+           psiVar = getPsiVar(fifthCentralMoment,steps);
+           %figure
+           %hold on
+           %hist(fifthCentralMoment,50)
+           %psiVar = input(' ')
+           %hold off
+           secondC = i;
         end
         
     end
@@ -279,7 +294,6 @@ for i = 2 : len
         pressureMinSaveFlag = 1;
     end
     
-    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % расчет опережения зажигания
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -290,17 +304,20 @@ for i = 2 : len
     if ((i > windowLen + 1) && (mod(i,floor(windowStep)) == 0))
         currVar = var(window);
         currMean = mean(window);
+        currFCM = abs(sum(window.^5)/length(window) - currMean^5);
         
         % определяем тип стационарности по дисперсии производной давления
-        if (currVar < psiVar)
+        %if (currVar < psiVar)
+        if (currFCM < psiVar && psiVarNotFoundedFlag == 1)
             currVarType = 1;
         else
             currVarType = 0;
         end
         % записываем значение мат ожидания и дисперсии по производной
-        %windowDiffVar = [windowDiffVar, currVar];
+        fifthCentralMoment = [fifthCentralMoment currFCM];
+        windowDiffVar = [windowDiffVar, currVar];
         %windowDiffMean = [windowDiffMean, currMean];
-        %windowDiffVarTime = [windowDiffVarTime, i];
+        windowDiffVarTime = [windowDiffVarTime, i];
     end   
     
     % если мы достигли минимального давления то ждем следующего впрыска
@@ -414,7 +431,35 @@ if (nargin == 6)
         stem(result.injectionStartTime, result.injectionStart, 'r');
         stem(result.injectionFinishTime,result.injectionFinish, 'b');
         stem(result.pressurePeakTime,result.pressurePeak, 'g');
+        %stem(secondC*dt,3)
         hold off
         
+        figure 
+        hold on
+        plot(windowDiffVarTime.*dt, fifthCentralMoment)
+        hold off
     end
+end
+end
+
+function [ psi ] = getPsiVar( array, step )
+if nargin < 2 || step <= 0
+    step = 10;
+end
+
+min_val = min(array);
+max_val = max(array);
+dx = abs(max_val-min_val)/step;
+sum = zeros(1,step);
+
+for i=1:length(array)
+    index = 1+floor((array(1,i)-min_val)/dx);
+    if index > step
+        index = step;
+    end
+    sum(index) = 1 + sum(index);
+end
+
+psi = find(sum==max(sum),1)*dx + min_val;
+
 end
